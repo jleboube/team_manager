@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baseball Team Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="app">
+        <div class="min-h-screen flex items-center justify-center">
+            <div class="spinner"></div>
+            <p class="ml-4 text-gray-600">Loading Baseball Manager...</p>
+        </div>
+    </div>
+
+    <script>
+        // Baseball Team Manager App
+        class BaseballManager {
+            constructor() {
+                this.currentUser = null;
+                this.teams = [];
+                this.players = [];
+                this.games = [];
+                this.selectedTeam = null;
+                this.activeTab = 'dashboard';
+                this.authMode = 'login';
+                
+                this.init();
+            }
+
+            async init() {
+                const token = localStorage.getItem('authToken');
+                if (token) {
+                    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                    await this.fetchUserProfile();
+                } else {
+                    this.renderAuthPage();
+                }
+            }
+
+            async fetchUserProfile() {
+                try {
+                    const response = await axios.get('/api/auth/profile');
+                    this.currentUser = response.data.user;
+                    await this.loadTeamData();
+                    this.renderMainApp();
+                } catch (error) {
+                    console.error('Auth verification failed:', error);
+                    localStorage.removeItem('authToken');
+                    delete axios.defaults.headers.common['Authorization'];
+                    this.renderAuthPage();
+                }
+            }
+
+            async loadTeamData() {
+                try {
+                    const [teamsRes, playersRes, gamesRes] = await Promise.all([
+                        axios.get('/api/teams'),
+                        axios.get('/api/players'),
+                        axios.get('/api/games')
+                    ]);
+
+                    this.teams = teamsRes.data;
+                    this.players = playersRes.data;
+                    this.games = gamesRes.data;
+
+                    if (this.teams.length > 0 && !this.selectedTeam) {
+                        this.selectedTeam = this.teams[0].id;
+                    }
+                } catch (error) {
+                    console.error('Failed to load team data:', error);
+                }
+            }
+
+            async handleLogin() {
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+
+                try {
+                    const response = await axios.post('/api/auth/login', { email, password });
+                    const { user, token } = response.data;
+
+                    localStorage.setItem('authToken', token);
+                    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                    
+                    this.currentUser = user;
+                    await this.loadTeamData();
+                    this.renderMainApp();
+                } catch (error) {
+                    alert(error.response?.data?.error || 'Login failed');
+                }
+            }
+
+            async handleRegister() {
+                const name = document.getElementById('registerName').value;
+                const email = document.getElementById('registerEmail').value;
+                const password = document.getElementById('registerPassword').value;
+                const code = document.getElementById('registerCode').value;
+                const role = document.getElementById('registerRole').value;
+
+                try {
+                    const response = await axios.post('/api/auth/register', { name, email, password, code, role });
+                    const { user, token } = response.data;
+
+                    localStorage.setItem('authToken', token);
+                    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                    
+                    this.currentUser = user;
+                    await this.loadTeamData();
+                    this.renderMainApp();
+                } catch (error) {
+                    alert(error.response?.data?.error || 'Registration failed');
+                }
+            }
+
+            handleLogout() {
+                localStorage.removeItem('authToken');
+                delete axios.defaults.headers.common['Authorization'];
+                this.currentUser = null;
+                this.teams = [];
+                this.players = [];
+                this.games = [];
+                this.renderAuthPage();
+            }
+
+            renderAuthPage() {
+                document.getElementById('app').innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-blue-600 to-green-600 flex items-center justify-center p-4">
+                        <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+                            <div class="text-center mb-8">
+                                <h1 class="text-3xl font-bold text-gray-900 mb-2">⚾ Team Manager</h1>
+                                <p class="text-gray-600">Manage your baseball team like a pro</p>
+                            </div>
+
+                            <div class="flex mb-6">
+                                <button onclick="app.authMode='login'; app.renderAuthPage()" 
+                                        class="flex-1 py-2 text-center rounded-l-lg transition-colors ${this.authMode === 'login' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}">
+                                    Login
+                                </button>
+                                <button onclick="app.authMode='register'; app.renderAuthPage()" 
+                                        class="flex-1 py-2 text-center rounded-r-lg transition-colors ${this.authMode === 'register' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}">
+                                    Register
+                                </button>
+                            </div>
+
+                            ${this.authMode === 'login' ? this.renderLoginForm() : this.renderRegisterForm()}
+
+                            <div class="mt-6 p-4 bg-gray-100 rounded-lg text-sm">
+                                <p class="font-semibold mb-2">Demo Credentials:</p>
+                                <p><strong>Coach:</strong> coach@team.com / password</p>
+                                <p><strong>Player:</strong> player@team.com / password</p>
+                                <p><strong>Parent:</strong> parent@team.com / password</p>
+                                <p><strong>Registration Code:</strong> TEAM123</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderLoginForm() {
+                return `
+                    <div class="space-y-4">
+                        <input type="email" id="loginEmail" placeholder="Email" 
+                               class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        <input type="password" id="loginPassword" placeholder="Password" 
+                               class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        <button onclick="app.handleLogin()" 
+                                class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                            Login
+                        </button>
+                    </div>
+                `;
+            }
+
+            renderRegisterForm() {
+                return `
+                    <div class="space-y-4">
+                        <input type="text" id="registerName" placeholder="Full Name" 
+                               class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        <input type="email" id="registerEmail" placeholder="Email" 
+                               class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        <input type="password" id="registerPassword" placeholder="Password" 
+                               class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        <input type="text" id="registerCode" placeholder="Registration Code" 
+                               class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        <select id="registerRole" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="player">Player</option>
+                            <option value="parent">Parent/Viewer</option>
+                        </select>
+                        <button onclick="app.handleRegister()" 
+                                class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors">
+                            Register
+                        </button>
+                    </div>
+                `;
+            }
+
+            renderMainApp() {
+                const team = this.teams.find(t => t.id === this.selectedTeam);
+                const teamPlayers = this.players.filter(p => p.team_id === this.selectedTeam);
+                const teamGames = this.games.filter(g => g.team_id === this.selectedTeam);
+
+                document.getElementById('app').innerHTML = `
+                    <div class="min-h-screen bg-gray-100">
+                        <!-- Header -->
+                        <header class="bg-white shadow-sm border-b">
+                            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                <div class="flex justify-between items-center py-4">
+                                    <div class="flex items-center">
+                                        <h1 class="text-2xl font-bold text-gray-900">⚾ Team Manager</h1>
+                                        ${this.teams.length > 0 ? `
+                                            <div class="ml-8">
+                                                <select onchange="app.selectedTeam=Number(this.value); app.renderMainApp()" 
+                                                        class="border rounded-lg px-3 py-1">
+                                                    ${this.teams.map(t => `<option value="${t.id}" ${t.id === this.selectedTeam ? 'selected' : ''}>${t.name}</option>`).join('')}
+                                                </select>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                    <div class="flex items-center space-x-4">
+                                        <span class="text-sm text-gray-600">${this.currentUser.name} (${this.currentUser.role})</span>
+                                        <button onclick="app.handleLogout()" class="flex items-center space-x-1 text-gray-600 hover:text-gray-900">
+                                            <span>Logout</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </header>
+
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                            <div class="flex">
+                                <!-- Sidebar -->
+                                <nav class="w-64 bg-white rounded-lg shadow-sm p-6 mr-8">
+                                    <ul class="space-y-2">
+                                        <li>
+                                            <button onclick="app.activeTab='dashboard'; app.renderMainApp()" 
+                                                    class="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${this.activeTab === 'dashboard' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}">
+                                                <span>📊</span><span>Dashboard</span>
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button onclick="app.activeTab='roster'; app.renderMainApp()" 
+                                                    class="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${this.activeTab === 'roster' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}">
+                                                <span>👥</span><span>Roster</span>
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button onclick="app.activeTab='schedule'; app.renderMainApp()" 
+                                                    class="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${this.activeTab === 'schedule' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}">
+                                                <span>📅</span><span>Schedule</span>
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button onclick="app.activeTab='stats'; app.renderMainApp()" 
+                                                    class="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${this.activeTab === 'stats' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}">
+                                                <span>📈</span><span>Statistics</span>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+
+                                <!-- Main Content -->
+                                <main class="flex-1 bg-white rounded-lg shadow-sm p-6">
+                                    ${this.selectedTeam ? this.renderMainContent(team, teamPlayers, teamGames) : this.renderNoTeam()}
+                                </main>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderMainContent(team, teamPlayers, teamGames) {
+                if (this.activeTab === 'dashboard') {
+                    return `
+                        <h2 class="text-2xl font-bold text-gray-900 mb-6">Team Dashboard</h2>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div class="bg-blue-50 p-6 rounded-lg">
+                                <h3 class="text-lg font-semibold text-blue-900 mb-2">Total Players</h3>
+                                <p class="text-3xl font-bold text-blue-600">${teamPlayers.length}</p>
+                            </div>
+                            <div class="bg-green-50 p-6 rounded-lg">
+                                <h3 class="text-lg font-semibold text-green-900 mb-2">Games Played</h3>
+                                <p class="text-3xl font-bold text-green-600">${teamGames.filter(g => g.status === 'completed').length}</p>
+                            </div>
+                            <div class="bg-purple-50 p-6 rounded-lg">
+                                <h3 class="text-lg font-semibold text-purple-900 mb-2">Upcoming Games</h3>
+                                <p class="text-3xl font-bold text-purple-600">${teamGames.filter(g => g.status === 'upcoming').length}</p>
+                            </div>
+                        </div>
+
+                        ${team ? `
+                            <div class="mb-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Welcome to ${team.name}</h3>
+                                <p class="text-gray-600">${team.season}</p>
+                            </div>
+                        ` : ''}
+
+                        <div class="space-y-6">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Games</h3>
+                                ${teamGames.length > 0 ? `
+                                    <div class="space-y-3">
+                                        ${teamGames.slice(0, 3).map(game => `
+                                            <div class="border rounded-lg p-4">
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <p class="font-semibold">vs ${game.opponent}</p>
+                                                        <p class="text-sm text-gray-600">${game.game_date} at ${game.game_time}</p>
+                                                        <p class="text-sm text-gray-600">${game.location}</p>
+                                                    </div>
+                                                    <span class="px-2 py-1 rounded-full text-xs ${
+                                                        game.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                        game.status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
+                                                        'bg-red-100 text-red-800'
+                                                    }">${game.status}</span>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : '<p class="text-gray-600">No games scheduled yet.</p>'}
+                            </div>
+
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Team Roster</h3>
+                                ${teamPlayers.length > 0 ? `
+                                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        ${teamPlayers.slice(0, 6).map(player => `
+                                            <div class="border rounded-lg p-4">
+                                                <div class="flex items-center space-x-3">
+                                                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                                        <span class="text-sm font-bold text-blue-600">${player.jersey_number}</span>
+                                                    </div>
+                                                    <div>
+                                                        <h4 class="font-semibold text-gray-900">${player.name}</h4>
+                                                        <p class="text-sm text-gray-600">${player.position}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : '<p class="text-gray-600">No players added yet.</p>'}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="text-center py-12">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">${this.activeTab.charAt(0).toUpperCase() + this.activeTab.slice(1)} Coming Soon</h3>
+                            <p class="text-gray-600">This section is being built. Check back soon!</p>
+                        </div>
+                    `;
+                }
+            }
+
+            renderNoTeam() {
+                return `
+                    <div class="text-center py-12">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">No Team Found</h3>
+                        <p class="text-gray-600">Contact your coach to get added to a team.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize the app
+        const app = new BaseballManager();
+    </script>
+</body>
+</html>

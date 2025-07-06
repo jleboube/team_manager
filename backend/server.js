@@ -11,19 +11,33 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Database connection
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-});
+// Database connection with retry logic
+const createPool = () => {
+  return new Pool({
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+  });
+};
+
+let pool = createPool();
 
 // Middleware
 app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+
+// Fix for rate limiting warning - set trust proxy
+app.set('trust proxy', 1);
+
+app.use(rateLimit({ 
+  windowMs: 15 * 60 * 1000, 
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));
@@ -38,6 +52,24 @@ const authenticateToken = (req, res, next) => {
     req.user = user;
     next();
   });
+};
+
+// Database connection check
+const checkDatabaseConnection = async () => {
+  let retries = 10;
+  while (retries > 0) {
+    try {
+      await pool.query('SELECT 1');
+      console.log('✅ Database connected successfully');
+      return true;
+    } catch (error) {
+      console.log(`⏳ Waiting for database... (${retries} retries left)`);
+      retries--;
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+  }
+  console.error('❌ Failed to connect to database after multiple retries');
+  return false;
 };
 
 // Routes
@@ -257,15 +289,14 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Baseball Manager API running on port ${PORT}`);
-});
-
-// Setup demo data
-setTimeout(async () => {
+// Setup demo data after database is ready
+const setupDemoData = async () => {
   try {
+    console.log('🎬 Setting up demo data...');
+    
     const passwordHash = await bcrypt.hash('password', 10);
     
+    // Insert demo users
     await pool.query(`
       INSERT INTO users (name, email, password_hash, role) VALUES 
       ('Coach Johnson', 'coach@team.com', $1, 'admin'),
@@ -274,20 +305,24 @@ setTimeout(async () => {
       ON CONFLICT (email) DO NOTHING
     `, [passwordHash]);
 
+    // Get admin user
     const adminResult = await pool.query('SELECT id FROM users WHERE email = $1', ['coach@team.com']);
     const adminId = adminResult.rows[0]?.id;
 
     if (adminId) {
+      // Insert demo team
       await pool.query(`
         INSERT INTO teams (name, season, admin_id, invite_code) VALUES 
         ('Eagles Baseball', '2025 Spring', $1, 'TEAM123')
         ON CONFLICT (invite_code) DO NOTHING
       `, [adminId]);
 
+      // Get team
       const teamResult = await pool.query('SELECT id FROM teams WHERE invite_code = $1', ['TEAM123']);
       const teamId = teamResult.rows[0]?.id;
 
       if (teamId) {
+        // Add users to team
         const users = await pool.query('SELECT id, role FROM users WHERE email IN ($1, $2, $3)', 
           ['coach@team.com', 'player@team.com', 'parent@team.com']);
 
@@ -298,6 +333,7 @@ setTimeout(async () => {
           `, [user.id, teamId, user.role]);
         }
 
+        // Add demo players
         await pool.query(`
           INSERT INTO players (team_id, name, jersey_number, position, role, email) VALUES 
           ($1, 'Mike Johnson', 12, 'Pitcher', 'Starter', 'mike.johnson@email.com'),
@@ -306,16 +342,43 @@ setTimeout(async () => {
           ON CONFLICT (team_id, jersey_number) DO NOTHING
         `, [teamId]);
 
+        // Add demo games
         await pool.query(`
           INSERT INTO games (team_id, opponent, game_date, game_time, location, home_away, status) VALUES 
           ($1, 'Tigers', '2025-07-10', '15:00', 'Central Park Field 1', 'home', 'upcoming'),
           ($1, 'Lions', '2025-07-05', '14:00', 'Lions Stadium', 'away', 'completed')
           ON CONFLICT DO NOTHING
         `, [teamId]);
+
+        console.log('✅ Demo data setup complete!');
       }
     }
-    console.log('Demo data setup complete!');
   } catch (error) {
-    console.error('Demo setup error:', error);
+    console.error('❌ Demo setup error:', error);
   }
-}, 5000);
+};
+
+// Start server with proper initialization
+const startServer = async () => {
+  try {
+    // Wait for database connection
+    const dbConnected = await checkDatabaseConnection();
+    if (!dbConnected) {
+      process.exit(1);
+    }
+
+    // Setup demo data
+    await setupDemoData();
+
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`🚀 Baseball Manager API running on port ${PORT}`);
+      console.log(`🔑 Demo credentials: coach@team.com / password`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();

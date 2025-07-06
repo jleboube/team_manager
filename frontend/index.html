@@ -544,15 +544,15 @@
                                     <div class="space-y-3">
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700">Height</label>
-                                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="e.g., 6'2&quot;">
+                                            <input type="text" id="scoutHeight" class="w-full border rounded-lg px-3 py-2" placeholder="e.g., 6'2&quot;">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700">Weight</label>
-                                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="e.g., 185 lbs">
+                                            <input type="text" id="scoutWeight" class="w-full border rounded-lg px-3 py-2" placeholder="e.g., 185 lbs">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700">Throws</label>
-                                            <select class="w-full border rounded-lg px-3 py-2">
+                                            <select id="scoutThrows" class="w-full border rounded-lg px-3 py-2">
                                                 <option value="">Select</option>
                                                 <option value="Right">Right</option>
                                                 <option value="Left">Left</option>
@@ -561,7 +561,7 @@
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700">Bats</label>
-                                            <select class="w-full border rounded-lg px-3 py-2">
+                                            <select id="scoutBats" class="w-full border rounded-lg px-3 py-2">
                                                 <option value="">Select</option>
                                                 <option value="Right">Right</option>
                                                 <option value="Left">Left</option>
@@ -575,19 +575,19 @@
                                     <div class="space-y-3">
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700">Birth Date</label>
-                                            <input type="date" class="w-full border rounded-lg px-3 py-2">
+                                            <input type="date" id="scoutBirthDate" class="w-full border rounded-lg px-3 py-2">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700">School</label>
-                                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="High School/College">
+                                            <input type="text" id="scoutSchool" class="w-full border rounded-lg px-3 py-2" placeholder="High School/College">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700">Parent/Guardian</label>
-                                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="Contact Name">
+                                            <input type="text" id="scoutParentGuardian" class="w-full border rounded-lg px-3 py-2" placeholder="Contact Name">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700">Emergency Contact</label>
-                                            <input type="tel" class="w-full border rounded-lg px-3 py-2" placeholder="Phone Number">
+                                            <input type="tel" id="scoutEmergencyContact" class="w-full border rounded-lg px-3 py-2" placeholder="Phone Number">
                                         </div>
                                     </div>
                                 </div>
@@ -599,25 +599,25 @@
                                 <div class="grid grid-cols-3 gap-6">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Contact Ability (1-10)</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutContactAbility" class="w-full border rounded-lg px-3 py-2">
                                             ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Power (1-10)</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutPower" class="w-full border rounded-lg px-3 py-2">
                                             ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Plate Discipline (1-10)</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutPlateDiscipline" class="w-full border rounded-lg px-3 py-2">
                                             ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Swing Mechanics</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutSwingMechanics" class="w-full border rounded-lg px-3 py-2">
                                             <option value="Excellent">Excellent</option>
                                             <option value="Good">Good</option>
                                             <option value="Average">Average</option>
@@ -626,7 +626,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Bunting Ability</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutBuntingAbility" class="w-full border rounded-lg px-3 py-2">
                                             <option value="Excellent">Excellent</option>
                                             <option value="Good">Good</option>
                                             <option value="Average">Average</option>
@@ -635,7 +635,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Clutch Hitting</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutClutchHitting" class="w-full border rounded-lg px-3 py-2">
                                             <option value="Excellent">Excellent</option>
                                             <option value="Good">Good</option>
                                             <option value="Average">Average</option>
@@ -645,7 +645,7 @@
                                 </div>
                                 <div class="mt-4">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Hitting Notes</label>
-                                    <textarea class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Detailed notes about hitting ability, strengths, areas for improvement..."></textarea>
+                                    <textarea id="scoutHittingNotes" class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Detailed notes about hitting ability, strengths, areas for improvement..."></textarea>
                                 </div>
                             </div>
 
@@ -655,25 +655,25 @@
                                 <div class="grid grid-cols-3 gap-6">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Range (1-10)</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutRange" class="w-full border rounded-lg px-3 py-2">
                                             ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Arm Strength (1-10)</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutArmStrength" class="w-full border rounded-lg px-3 py-2">
                                             ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Accuracy (1-10)</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutAccuracy" class="w-full border rounded-lg px-3 py-2">
                                             ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Hands/Glove Work</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutHandsGloveWork" class="w-full border rounded-lg px-3 py-2">
                                             <option value="Excellent">Excellent</option>
                                             <option value="Good">Good</option>
                                             <option value="Average">Average</option>
@@ -682,7 +682,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Footwork</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutFootwork" class="w-full border rounded-lg px-3 py-2">
                                             <option value="Excellent">Excellent</option>
                                             <option value="Good">Good</option>
                                             <option value="Average">Average</option>
@@ -691,7 +691,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Game Awareness</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutGameAwareness" class="w-full border rounded-lg px-3 py-2">
                                             <option value="Excellent">Excellent</option>
                                             <option value="Good">Good</option>
                                             <option value="Average">Average</option>
@@ -701,7 +701,7 @@
                                 </div>
                                 <div class="mt-4">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Fielding Notes</label>
-                                    <textarea class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Detailed notes about fielding ability, positioning, areas for improvement..."></textarea>
+                                    <textarea id="scoutFieldingNotes" class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Detailed notes about fielding ability, positioning, areas for improvement..."></textarea>
                                 </div>
                             </div>
 
@@ -711,13 +711,13 @@
                                 <div class="grid grid-cols-3 gap-6">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Speed (1-10)</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutSpeed" class="w-full border rounded-lg px-3 py-2">
                                             ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Base Running IQ</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutBaseRunningIQ" class="w-full border rounded-lg px-3 py-2">
                                             <option value="Excellent">Excellent</option>
                                             <option value="Good">Good</option>
                                             <option value="Average">Average</option>
@@ -726,7 +726,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Steal Ability</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutStealAbility" class="w-full border rounded-lg px-3 py-2">
                                             <option value="Excellent">Excellent</option>
                                             <option value="Good">Good</option>
                                             <option value="Average">Average</option>
@@ -736,7 +736,7 @@
                                 </div>
                                 <div class="mt-4">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Running Notes</label>
-                                    <textarea class="w-full border rounded-lg px-3 py-2 h-24" placeholder="60-yard time, base running instincts, areas for improvement..."></textarea>
+                                    <textarea id="scoutRunningNotes" class="w-full border rounded-lg px-3 py-2 h-24" placeholder="60-yard time, base running instincts, areas for improvement..."></textarea>
                                 </div>
                             </div>
 
@@ -747,23 +747,23 @@
                                     <div class="grid grid-cols-3 gap-6">
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Fastball Velocity</label>
-                                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="e.g., 82-85 mph">
+                                            <input type="text" id="scoutFastballVelocity" class="w-full border rounded-lg px-3 py-2" placeholder="e.g., 82-85 mph">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Control (1-10)</label>
-                                            <select class="w-full border rounded-lg px-3 py-2">
+                                            <select id="scoutControl" class="w-full border rounded-lg px-3 py-2">
                                                 ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                                             </select>
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Command (1-10)</label>
-                                            <select class="w-full border rounded-lg px-3 py-2">
+                                            <select id="scoutCommand" class="w-full border rounded-lg px-3 py-2">
                                                 ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                                             </select>
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Curveball</label>
-                                            <select class="w-full border rounded-lg px-3 py-2">
+                                            <select id="scoutCurveball" class="w-full border rounded-lg px-3 py-2">
                                                 <option value="Plus">Plus</option>
                                                 <option value="Average">Average</option>
                                                 <option value="Below Average">Below Average</option>
@@ -772,7 +772,7 @@
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Changeup</label>
-                                            <select class="w-full border rounded-lg px-3 py-2">
+                                            <select id="scoutChangeup" class="w-full border rounded-lg px-3 py-2">
                                                 <option value="Plus">Plus</option>
                                                 <option value="Average">Average</option>
                                                 <option value="Below Average">Below Average</option>
@@ -781,7 +781,7 @@
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Slider/Cutter</label>
-                                            <select class="w-full border rounded-lg px-3 py-2">
+                                            <select id="scoutSliderCutter" class="w-full border rounded-lg px-3 py-2">
                                                 <option value="Plus">Plus</option>
                                                 <option value="Average">Average</option>
                                                 <option value="Below Average">Below Average</option>
@@ -791,7 +791,7 @@
                                     </div>
                                     <div class="mt-4">
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Pitching Notes</label>
-                                        <textarea class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Mechanics, stamina, mental toughness, areas for development..."></textarea>
+                                        <textarea id="scoutPitchingNotes" class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Mechanics, stamina, mental toughness, areas for development..."></textarea>
                                     </div>
                                 </div>
                             ` : ''}
@@ -802,13 +802,13 @@
                                 <div class="grid grid-cols-2 gap-6">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Overall Grade (1-10)</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutOverallGrade" class="w-full border rounded-lg px-3 py-2">
                                             ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Ceiling/Potential</label>
-                                        <select class="w-full border rounded-lg px-3 py-2">
+                                        <select id="scoutPotential" class="w-full border rounded-lg px-3 py-2">
                                             <option value="High">High</option>
                                             <option value="Medium">Medium</option>
                                             <option value="Low">Low</option>
@@ -817,21 +817,21 @@
                                 </div>
                                 <div class="mt-4">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Strengths</label>
-                                    <textarea class="w-full border rounded-lg px-3 py-2 h-20" placeholder="Key strengths and standout skills..."></textarea>
+                                    <textarea id="scoutStrengths" class="w-full border rounded-lg px-3 py-2 h-20" placeholder="Key strengths and standout skills..."></textarea>
                                 </div>
                                 <div class="mt-4">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Areas for Improvement</label>
-                                    <textarea class="w-full border rounded-lg px-3 py-2 h-20" placeholder="Skills to develop and focus areas for training..."></textarea>
+                                    <textarea id="scoutAreasForImprovement" class="w-full border rounded-lg px-3 py-2 h-20" placeholder="Skills to develop and focus areas for training..."></textarea>
                                 </div>
                                 <div class="mt-4">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Overall Summary</label>
-                                    <textarea class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Complete scouting summary and recommendations..."></textarea>
+                                    <textarea id="scoutOverallSummary" class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Complete scouting summary and recommendations..."></textarea>
                                 </div>
                             </div>
 
                             <!-- Save Button -->
                             <div class="flex justify-end">
-                                <button class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                                <button onclick="app.saveScoutingReport()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
                                     Save Scouting Report
                                 </button>
                             </div>
@@ -1129,10 +1129,115 @@
 
             // Utility functions for handling actions
             async savePlayer() {
-                // Implementation would call backend API to save player
-                console.log('Save player functionality would be implemented here');
-                this.showingForm = null;
-                this.renderMainApp();
+                try {
+                    const name = document.getElementById('playerName').value;
+                    const jerseyNumber = parseInt(document.getElementById('playerJersey').value);
+                    const position = document.getElementById('playerPosition').value;
+                    const role = document.getElementById('playerRole').value;
+                    const email = document.getElementById('playerEmail').value;
+
+                    if (!name || !jerseyNumber || !position || !role) {
+                        alert('Please fill in all required fields');
+                        return;
+                    }
+
+                    const response = await axios.post('/api/players', {
+                        teamId: this.selectedTeam,
+                        name,
+                        jerseyNumber,
+                        position,
+                        role,
+                        email: email || null
+                    });
+
+                    // Refresh players data
+                    await this.loadTeamData();
+                    this.showingForm = null;
+                    this.renderMainApp();
+                    alert('Player added successfully!');
+                } catch (error) {
+                    console.error('Error adding player:', error);
+                    alert(error.response?.data?.error || 'Failed to add player');
+                }
+            }
+
+            async deletePlayer(playerId) {
+                if (!confirm('Are you sure you want to delete this player? This action cannot be undone.')) {
+                    return;
+                }
+
+                try {
+                    await axios.delete(`/api/players/${playerId}`);
+                    
+                    // Refresh players data
+                    await this.loadTeamData();
+                    this.renderMainApp();
+                    alert('Player deleted successfully!');
+                } catch (error) {
+                    console.error('Error deleting player:', error);
+                    alert(error.response?.data?.error || 'Failed to delete player');
+                }
+            }
+
+            async saveScoutingReport() {
+                try {
+                    const playerId = this.selectedPlayer.id;
+                    
+                    // Collect all form data
+                    const scoutingData = {
+                        height: document.getElementById('scoutHeight')?.value || '',
+                        weight: document.getElementById('scoutWeight')?.value || '',
+                        throws: document.getElementById('scoutThrows')?.value || '',
+                        bats: document.getElementById('scoutBats')?.value || '',
+                        birthDate: document.getElementById('scoutBirthDate')?.value || '',
+                        school: document.getElementById('scoutSchool')?.value || '',
+                        parentGuardian: document.getElementById('scoutParentGuardian')?.value || '',
+                        emergencyContact: document.getElementById('scoutEmergencyContact')?.value || '',
+                        contactAbility: parseInt(document.getElementById('scoutContactAbility')?.value) || 0,
+                        power: parseInt(document.getElementById('scoutPower')?.value) || 0,
+                        plateDiscipline: parseInt(document.getElementById('scoutPlateDiscipline')?.value) || 0,
+                        swingMechanics: document.getElementById('scoutSwingMechanics')?.value || '',
+                        buntingAbility: document.getElementById('scoutBuntingAbility')?.value || '',
+                        clutchHitting: document.getElementById('scoutClutchHitting')?.value || '',
+                        hittingNotes: document.getElementById('scoutHittingNotes')?.value || '',
+                        range: parseInt(document.getElementById('scoutRange')?.value) || 0,
+                        armStrength: parseInt(document.getElementById('scoutArmStrength')?.value) || 0,
+                        accuracy: parseInt(document.getElementById('scoutAccuracy')?.value) || 0,
+                        handsGloveWork: document.getElementById('scoutHandsGloveWork')?.value || '',
+                        footwork: document.getElementById('scoutFootwork')?.value || '',
+                        gameAwareness: document.getElementById('scoutGameAwareness')?.value || '',
+                        fieldingNotes: document.getElementById('scoutFieldingNotes')?.value || '',
+                        speed: parseInt(document.getElementById('scoutSpeed')?.value) || 0,
+                        baseRunningIQ: document.getElementById('scoutBaseRunningIQ')?.value || '',
+                        stealAbility: document.getElementById('scoutStealAbility')?.value || '',
+                        runningNotes: document.getElementById('scoutRunningNotes')?.value || '',
+                        fastballVelocity: document.getElementById('scoutFastballVelocity')?.value || '',
+                        control: parseInt(document.getElementById('scoutControl')?.value) || 0,
+                        command: parseInt(document.getElementById('scoutCommand')?.value) || 0,
+                        curveball: document.getElementById('scoutCurveball')?.value || '',
+                        changeup: document.getElementById('scoutChangeup')?.value || '',
+                        sliderCutter: document.getElementById('scoutSliderCutter')?.value || '',
+                        pitchingNotes: document.getElementById('scoutPitchingNotes')?.value || '',
+                        overallGrade: parseInt(document.getElementById('scoutOverallGrade')?.value) || 0,
+                        potential: document.getElementById('scoutPotential')?.value || '',
+                        strengths: document.getElementById('scoutStrengths')?.value || '',
+                        areasForImprovement: document.getElementById('scoutAreasForImprovement')?.value || '',
+                        overallSummary: document.getElementById('scoutOverallSummary')?.value || ''
+                    };
+
+                    await axios.post('/api/scouting-reports', {
+                        playerId,
+                        ...scoutingData
+                    });
+
+                    alert('Scouting report saved successfully!');
+                    this.selectedPlayer = null;
+                    this.showingForm = null;
+                    this.renderMainApp();
+                } catch (error) {
+                    console.error('Error saving scouting report:', error);
+                    alert(error.response?.data?.error || 'Failed to save scouting report');
+                }
             }
 
             async saveEvent() {

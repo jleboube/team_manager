@@ -20,6 +20,21 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .calendar-day {
+            min-height: 120px;
+            border: 1px solid #e5e7eb;
+            padding: 4px;
+        }
+        .calendar-event {
+            font-size: 10px;
+            padding: 2px 4px;
+            margin: 1px 0;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .game-event { background-color: #dbeafe; color: #1e40af; }
+        .practice-event { background-color: #dcfce7; color: #166534; }
+        .meeting-event { background-color: #fef3c7; color: #92400e; }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -38,9 +53,13 @@
                 this.teams = [];
                 this.players = [];
                 this.games = [];
+                this.stats = [];
                 this.selectedTeam = null;
                 this.activeTab = 'dashboard';
                 this.authMode = 'login';
+                this.currentDate = new Date();
+                this.selectedPlayer = null;
+                this.showingForm = null;
                 
                 this.init();
             }
@@ -71,15 +90,17 @@
 
             async loadTeamData() {
                 try {
-                    const [teamsRes, playersRes, gamesRes] = await Promise.all([
+                    const [teamsRes, playersRes, gamesRes, statsRes] = await Promise.all([
                         axios.get('/api/teams'),
                         axios.get('/api/players'),
-                        axios.get('/api/games')
+                        axios.get('/api/games'),
+                        axios.get('/api/stats')
                     ]);
 
                     this.teams = teamsRes.data;
                     this.players = playersRes.data;
                     this.games = gamesRes.data;
+                    this.stats = statsRes.data;
 
                     if (this.teams.length > 0 && !this.selectedTeam) {
                         this.selectedTeam = this.teams[0].id;
@@ -137,7 +158,23 @@
                 this.teams = [];
                 this.players = [];
                 this.games = [];
+                this.stats = [];
                 this.renderAuthPage();
+            }
+
+            // Utility function to calculate player season stats
+            getPlayerSeasonStats(playerId) {
+                const playerStats = this.stats.filter(s => s.player_id === playerId);
+                return playerStats.reduce((acc, stat) => ({
+                    atBats: acc.atBats + (stat.at_bats || 0),
+                    hits: acc.hits + (stat.hits || 0),
+                    rbis: acc.rbis + (stat.rbis || 0),
+                    runs: acc.runs + (stat.runs || 0),
+                    strikeouts: acc.strikeouts + (stat.strikeouts || 0),
+                    walks: acc.walks + (stat.walks || 0),
+                    inningsPitched: acc.inningsPitched + (stat.innings_pitched || 0),
+                    earnedRuns: acc.earnedRuns + (stat.earned_runs || 0)
+                }), { atBats: 0, hits: 0, rbis: 0, runs: 0, strikeouts: 0, walks: 0, inningsPitched: 0, earnedRuns: 0 });
             }
 
             renderAuthPage() {
@@ -287,87 +324,835 @@
             }
 
             renderMainContent(team, teamPlayers, teamGames) {
-                if (this.activeTab === 'dashboard') {
-                    return `
-                        <h2 class="text-2xl font-bold text-gray-900 mb-6">Team Dashboard</h2>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            <div class="bg-blue-50 p-6 rounded-lg">
-                                <h3 class="text-lg font-semibold text-blue-900 mb-2">Total Players</h3>
-                                <p class="text-3xl font-bold text-blue-600">${teamPlayers.length}</p>
-                            </div>
-                            <div class="bg-green-50 p-6 rounded-lg">
-                                <h3 class="text-lg font-semibold text-green-900 mb-2">Games Played</h3>
-                                <p class="text-3xl font-bold text-green-600">${teamGames.filter(g => g.status === 'completed').length}</p>
-                            </div>
-                            <div class="bg-purple-50 p-6 rounded-lg">
-                                <h3 class="text-lg font-semibold text-purple-900 mb-2">Upcoming Games</h3>
-                                <p class="text-3xl font-bold text-purple-600">${teamGames.filter(g => g.status === 'upcoming').length}</p>
-                            </div>
-                        </div>
-
-                        ${team ? `
-                            <div class="mb-6">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Welcome to ${team.name}</h3>
-                                <p class="text-gray-600">${team.season}</p>
-                            </div>
-                        ` : ''}
-
-                        <div class="space-y-6">
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Games</h3>
-                                ${teamGames.length > 0 ? `
-                                    <div class="space-y-3">
-                                        ${teamGames.slice(0, 3).map(game => `
-                                            <div class="border rounded-lg p-4">
-                                                <div class="flex justify-between items-center">
-                                                    <div>
-                                                        <p class="font-semibold">vs ${game.opponent}</p>
-                                                        <p class="text-sm text-gray-600">${game.game_date} at ${game.game_time}</p>
-                                                        <p class="text-sm text-gray-600">${game.location}</p>
-                                                    </div>
-                                                    <span class="px-2 py-1 rounded-full text-xs ${
-                                                        game.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                                        game.status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
-                                                        'bg-red-100 text-red-800'
-                                                    }">${game.status}</span>
-                                                </div>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                ` : '<p class="text-gray-600">No games scheduled yet.</p>'}
-                            </div>
-
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Team Roster</h3>
-                                ${teamPlayers.length > 0 ? `
-                                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        ${teamPlayers.slice(0, 6).map(player => `
-                                            <div class="border rounded-lg p-4">
-                                                <div class="flex items-center space-x-3">
-                                                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                                        <span class="text-sm font-bold text-blue-600">${player.jersey_number}</span>
-                                                    </div>
-                                                    <div>
-                                                        <h4 class="font-semibold text-gray-900">${player.name}</h4>
-                                                        <p class="text-sm text-gray-600">${player.position}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                ` : '<p class="text-gray-600">No players added yet.</p>'}
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    return `
-                        <div class="text-center py-12">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-2">${this.activeTab.charAt(0).toUpperCase() + this.activeTab.slice(1)} Coming Soon</h3>
-                            <p class="text-gray-600">This section is being built. Check back soon!</p>
-                        </div>
-                    `;
+                switch(this.activeTab) {
+                    case 'dashboard':
+                        return this.renderDashboard(team, teamPlayers, teamGames);
+                    case 'roster':
+                        return this.renderRoster(teamPlayers);
+                    case 'schedule':
+                        return this.renderSchedule(teamGames);
+                    case 'stats':
+                        return this.renderStatistics(teamPlayers);
+                    default:
+                        return this.renderDashboard(team, teamPlayers, teamGames);
                 }
+            }
+
+            renderDashboard(team, teamPlayers, teamGames) {
+                return `
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Team Dashboard</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-blue-50 p-6 rounded-lg">
+                            <h3 class="text-lg font-semibold text-blue-900 mb-2">Total Players</h3>
+                            <p class="text-3xl font-bold text-blue-600">${teamPlayers.length}</p>
+                        </div>
+                        <div class="bg-green-50 p-6 rounded-lg">
+                            <h3 class="text-lg font-semibold text-green-900 mb-2">Games Played</h3>
+                            <p class="text-3xl font-bold text-green-600">${teamGames.filter(g => g.status === 'completed').length}</p>
+                        </div>
+                        <div class="bg-purple-50 p-6 rounded-lg">
+                            <h3 class="text-lg font-semibold text-purple-900 mb-2">Upcoming Games</h3>
+                            <p class="text-3xl font-bold text-purple-600">${teamGames.filter(g => g.status === 'upcoming').length}</p>
+                        </div>
+                    </div>
+
+                    ${team ? `
+                        <div class="mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Welcome to ${team.name}</h3>
+                            <p class="text-gray-600">${team.season}</p>
+                        </div>
+                    ` : ''}
+
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Games</h3>
+                            ${teamGames.length > 0 ? `
+                                <div class="space-y-3">
+                                    ${teamGames.slice(0, 3).map(game => `
+                                        <div class="border rounded-lg p-4">
+                                            <div class="flex justify-between items-center">
+                                                <div>
+                                                    <p class="font-semibold">vs ${game.opponent}</p>
+                                                    <p class="text-sm text-gray-600">${game.game_date} at ${game.game_time}</p>
+                                                    <p class="text-sm text-gray-600">${game.location}</p>
+                                                </div>
+                                                <span class="px-2 py-1 rounded-full text-xs ${
+                                                    game.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                    game.status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
+                                                    'bg-red-100 text-red-800'
+                                                }">${game.status}</span>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : '<p class="text-gray-600">No games scheduled yet.</p>'}
+                        </div>
+
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Team Roster</h3>
+                            ${teamPlayers.length > 0 ? `
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    ${teamPlayers.slice(0, 6).map(player => `
+                                        <div class="border rounded-lg p-4">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                                    <span class="text-sm font-bold text-blue-600">${player.jersey_number}</span>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-semibold text-gray-900">${player.name}</h4>
+                                                    <p class="text-sm text-gray-600">${player.position}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : '<p class="text-gray-600">No players added yet.</p>'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderRoster(teamPlayers) {
+                if (this.selectedPlayer && this.showingForm === 'scoutingReport') {
+                    return this.renderScoutingReport(this.selectedPlayer);
+                }
+
+                return `
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-900">Team Roster & Scouting Reports</h2>
+                        ${this.currentUser.role === 'admin' ? `
+                            <button onclick="app.showingForm='addPlayer'; app.renderMainApp()" 
+                                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                Add Player
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    ${this.showingForm === 'addPlayer' ? this.renderAddPlayerForm() : ''}
+
+                    <div class="space-y-4">
+                        ${teamPlayers.map(player => {
+                            const seasonStats = this.getPlayerSeasonStats(player.id);
+                            const avg = seasonStats.atBats > 0 ? (seasonStats.hits / seasonStats.atBats).toFixed(3) : '0.000';
+                            
+                            return `
+                                <div class="border rounded-lg p-6 bg-white shadow-sm">
+                                    <div class="flex justify-between items-start">
+                                        <div class="flex items-center space-x-4">
+                                            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                                                <span class="text-xl font-bold text-blue-600">${player.jersey_number}</span>
+                                            </div>
+                                            <div>
+                                                <h3 class="text-xl font-semibold text-gray-900">${player.name}</h3>
+                                                <p class="text-gray-600">${player.position} • ${player.role}</p>
+                                                <p class="text-sm text-gray-500">${player.email}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <button onclick="app.selectedPlayer=${JSON.stringify(player).replace(/"/g, '&quot;')}; app.showingForm='scoutingReport'; app.renderMainApp()" 
+                                                    class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                                                Scouting Report
+                                            </button>
+                                            ${this.currentUser.role === 'admin' ? `
+                                                <button onclick="app.editPlayer(${player.id})" 
+                                                        class="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700">
+                                                    Edit
+                                                </button>
+                                                <button onclick="app.deletePlayer(${player.id})" 
+                                                        class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
+                                                    Delete
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-4 gap-4 text-sm">
+                                        <div class="text-center">
+                                            <p class="font-semibold text-blue-600">${avg}</p>
+                                            <p class="text-gray-500">AVG</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <p class="font-semibold text-green-600">${seasonStats.rbis}</p>
+                                            <p class="text-gray-500">RBIs</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <p class="font-semibold text-purple-600">${seasonStats.runs}</p>
+                                            <p class="text-gray-500">Runs</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <p class="font-semibold text-orange-600">${seasonStats.hits}/${seasonStats.atBats}</p>
+                                            <p class="text-gray-500">H/AB</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            renderAddPlayerForm() {
+                return `
+                    <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                        <h3 class="text-lg font-semibold mb-4">Add New Player</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="text" id="playerName" placeholder="Player Name" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="playerJersey" placeholder="Jersey Number" class="border rounded-lg px-3 py-2">
+                            <select id="playerPosition" class="border rounded-lg px-3 py-2">
+                                <option value="">Select Position</option>
+                                <option value="Pitcher">Pitcher</option>
+                                <option value="Catcher">Catcher</option>
+                                <option value="First Base">First Base</option>
+                                <option value="Second Base">Second Base</option>
+                                <option value="Third Base">Third Base</option>
+                                <option value="Shortstop">Shortstop</option>
+                                <option value="Left Field">Left Field</option>
+                                <option value="Center Field">Center Field</option>
+                                <option value="Right Field">Right Field</option>
+                            </select>
+                            <select id="playerRole" class="border rounded-lg px-3 py-2">
+                                <option value="Starter">Starter</option>
+                                <option value="Bench">Bench</option>
+                                <option value="Pitcher">Pitcher</option>
+                            </select>
+                            <input type="email" id="playerEmail" placeholder="Email" class="border rounded-lg px-3 py-2 col-span-2">
+                        </div>
+                        <div class="flex space-x-2 mt-4">
+                            <button onclick="app.savePlayer()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Save Player</button>
+                            <button onclick="app.showingForm=null; app.renderMainApp()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">Cancel</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderScoutingReport(player) {
+                return `
+                    <div class="max-w-4xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900">Scouting Report: ${player.name}</h2>
+                            <button onclick="app.selectedPlayer=null; app.showingForm=null; app.renderMainApp()" 
+                                    class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Back to Roster
+                            </button>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-lg shadow-lg">
+                            <!-- Player Basic Info -->
+                            <div class="grid grid-cols-2 gap-6 mb-8">
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-4">Basic Information</h3>
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Height</label>
+                                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="e.g., 6'2&quot;">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Weight</label>
+                                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="e.g., 185 lbs">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Throws</label>
+                                            <select class="w-full border rounded-lg px-3 py-2">
+                                                <option value="">Select</option>
+                                                <option value="Right">Right</option>
+                                                <option value="Left">Left</option>
+                                                <option value="Switch">Switch</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Bats</label>
+                                            <select class="w-full border rounded-lg px-3 py-2">
+                                                <option value="">Select</option>
+                                                <option value="Right">Right</option>
+                                                <option value="Left">Left</option>
+                                                <option value="Switch">Switch</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-4">Contact Information</h3>
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Birth Date</label>
+                                            <input type="date" class="w-full border rounded-lg px-3 py-2">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">School</label>
+                                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="High School/College">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Parent/Guardian</label>
+                                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="Contact Name">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Emergency Contact</label>
+                                            <input type="tel" class="w-full border rounded-lg px-3 py-2" placeholder="Phone Number">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Hitting Assessment -->
+                            <div class="mb-8">
+                                <h3 class="text-lg font-semibold mb-4">Hitting Assessment</h3>
+                                <div class="grid grid-cols-3 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Contact Ability (1-10)</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Power (1-10)</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Plate Discipline (1-10)</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Swing Mechanics</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            <option value="Excellent">Excellent</option>
+                                            <option value="Good">Good</option>
+                                            <option value="Average">Average</option>
+                                            <option value="Needs Work">Needs Work</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Bunting Ability</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            <option value="Excellent">Excellent</option>
+                                            <option value="Good">Good</option>
+                                            <option value="Average">Average</option>
+                                            <option value="Poor">Poor</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Clutch Hitting</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            <option value="Excellent">Excellent</option>
+                                            <option value="Good">Good</option>
+                                            <option value="Average">Average</option>
+                                            <option value="Poor">Poor</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Hitting Notes</label>
+                                    <textarea class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Detailed notes about hitting ability, strengths, areas for improvement..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Fielding Assessment -->
+                            <div class="mb-8">
+                                <h3 class="text-lg font-semibold mb-4">Fielding Assessment</h3>
+                                <div class="grid grid-cols-3 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Range (1-10)</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Arm Strength (1-10)</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Accuracy (1-10)</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Hands/Glove Work</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            <option value="Excellent">Excellent</option>
+                                            <option value="Good">Good</option>
+                                            <option value="Average">Average</option>
+                                            <option value="Needs Work">Needs Work</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Footwork</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            <option value="Excellent">Excellent</option>
+                                            <option value="Good">Good</option>
+                                            <option value="Average">Average</option>
+                                            <option value="Needs Work">Needs Work</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Game Awareness</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            <option value="Excellent">Excellent</option>
+                                            <option value="Good">Good</option>
+                                            <option value="Average">Average</option>
+                                            <option value="Poor">Poor</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Fielding Notes</label>
+                                    <textarea class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Detailed notes about fielding ability, positioning, areas for improvement..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Running Assessment -->
+                            <div class="mb-8">
+                                <h3 class="text-lg font-semibold mb-4">Running Assessment</h3>
+                                <div class="grid grid-cols-3 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Speed (1-10)</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Base Running IQ</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            <option value="Excellent">Excellent</option>
+                                            <option value="Good">Good</option>
+                                            <option value="Average">Average</option>
+                                            <option value="Poor">Poor</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Steal Ability</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            <option value="Excellent">Excellent</option>
+                                            <option value="Good">Good</option>
+                                            <option value="Average">Average</option>
+                                            <option value="Poor">Poor</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Running Notes</label>
+                                    <textarea class="w-full border rounded-lg px-3 py-2 h-24" placeholder="60-yard time, base running instincts, areas for improvement..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Pitching Assessment (if applicable) -->
+                            ${player.position === 'Pitcher' || player.role === 'Pitcher' ? `
+                                <div class="mb-8">
+                                    <h3 class="text-lg font-semibold mb-4">Pitching Assessment</h3>
+                                    <div class="grid grid-cols-3 gap-6">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Fastball Velocity</label>
+                                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="e.g., 82-85 mph">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Control (1-10)</label>
+                                            <select class="w-full border rounded-lg px-3 py-2">
+                                                ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Command (1-10)</label>
+                                            <select class="w-full border rounded-lg px-3 py-2">
+                                                ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Curveball</label>
+                                            <select class="w-full border rounded-lg px-3 py-2">
+                                                <option value="Plus">Plus</option>
+                                                <option value="Average">Average</option>
+                                                <option value="Below Average">Below Average</option>
+                                                <option value="None">None</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Changeup</label>
+                                            <select class="w-full border rounded-lg px-3 py-2">
+                                                <option value="Plus">Plus</option>
+                                                <option value="Average">Average</option>
+                                                <option value="Below Average">Below Average</option>
+                                                <option value="None">None</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Slider/Cutter</label>
+                                            <select class="w-full border rounded-lg px-3 py-2">
+                                                <option value="Plus">Plus</option>
+                                                <option value="Average">Average</option>
+                                                <option value="Below Average">Below Average</option>
+                                                <option value="None">None</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Pitching Notes</label>
+                                        <textarea class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Mechanics, stamina, mental toughness, areas for development..."></textarea>
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            <!-- Overall Assessment -->
+                            <div class="mb-6">
+                                <h3 class="text-lg font-semibold mb-4">Overall Assessment</h3>
+                                <div class="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Overall Grade (1-10)</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Ceiling/Potential</label>
+                                        <select class="w-full border rounded-lg px-3 py-2">
+                                            <option value="High">High</option>
+                                            <option value="Medium">Medium</option>
+                                            <option value="Low">Low</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Strengths</label>
+                                    <textarea class="w-full border rounded-lg px-3 py-2 h-20" placeholder="Key strengths and standout skills..."></textarea>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Areas for Improvement</label>
+                                    <textarea class="w-full border rounded-lg px-3 py-2 h-20" placeholder="Skills to develop and focus areas for training..."></textarea>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Overall Summary</label>
+                                    <textarea class="w-full border rounded-lg px-3 py-2 h-24" placeholder="Complete scouting summary and recommendations..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Save Button -->
+                            <div class="flex justify-end">
+                                <button class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                                    Save Scouting Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderSchedule(teamGames) {
+                const today = new Date();
+                const currentMonth = this.currentDate.getMonth();
+                const currentYear = this.currentDate.getFullYear();
+                
+                return `
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900">Team Schedule</h2>
+                            ${(this.currentUser.role === 'admin' || this.currentUser.role === 'parent') ? `
+                                <button onclick="app.showingForm='addEvent'; app.renderMainApp()" 
+                                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                    Add Event
+                                </button>
+                            ` : ''}
+                        </div>
+
+                        ${this.showingForm === 'addEvent' ? this.renderAddEventForm() : ''}
+
+                        <!-- Calendar Navigation -->
+                        <div class="flex justify-between items-center mb-4">
+                            <button onclick="app.changeMonth(-1)" class="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300">
+                                ← Previous
+                            </button>
+                            <h3 class="text-xl font-semibold">
+                                ${this.currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                            </h3>
+                            <button onclick="app.changeMonth(1)" class="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300">
+                                Next →
+                            </button>
+                        </div>
+
+                        <!-- Calendar Grid -->
+                        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                            <div class="grid grid-cols-7 bg-gray-50">
+                                ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => 
+                                    `<div class="p-3 text-center font-semibold text-gray-700 border-r border-gray-200">${day}</div>`
+                                ).join('')}
+                            </div>
+                            
+                            <div class="grid grid-cols-7">
+                                ${this.generateCalendarDays(currentYear, currentMonth, teamGames)}
+                            </div>
+                        </div>
+
+                        <!-- Upcoming Events List -->
+                        <div class="mt-8">
+                            <h3 class="text-lg font-semibold mb-4">Upcoming Events</h3>
+                            <div class="space-y-3">
+                                ${teamGames
+                                    .filter(game => new Date(game.game_date) >= today)
+                                    .sort((a, b) => new Date(a.game_date) - new Date(b.game_date))
+                                    .slice(0, 5)
+                                    .map(game => `
+                                        <div class="border rounded-lg p-4 flex justify-between items-center">
+                                            <div>
+                                                <h4 class="font-semibold">${game.type || 'Game'}: ${game.opponent || game.title}</h4>
+                                                <p class="text-sm text-gray-600">${game.game_date} at ${game.game_time}</p>
+                                                <p class="text-sm text-gray-600">${game.location}</p>
+                                            </div>
+                                            <div class="flex space-x-2">
+                                                ${(this.currentUser.role === 'admin' || this.currentUser.role === 'parent') ? `
+                                                    <button onclick="app.editEvent(${game.id})" class="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700">Edit</button>
+                                                    <button onclick="app.deleteEvent(${game.id})" class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">Delete</button>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderAddEventForm() {
+                return `
+                    <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                        <h3 class="text-lg font-semibold mb-4">Add New Event</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <select id="eventType" class="border rounded-lg px-3 py-2">
+                                <option value="game">Game</option>
+                                <option value="practice">Practice</option>
+                                <option value="meeting">Team Meeting</option>
+                                <option value="tournament">Tournament</option>
+                            </select>
+                            <input type="text" id="eventTitle" placeholder="Event Title/Opponent" class="border rounded-lg px-3 py-2">
+                            <input type="date" id="eventDate" class="border rounded-lg px-3 py-2">
+                            <input type="time" id="eventTime" class="border rounded-lg px-3 py-2">
+                            <input type="text" id="eventLocation" placeholder="Location" class="border rounded-lg px-3 py-2 col-span-2">
+                            <textarea id="eventNotes" placeholder="Additional Notes" class="border rounded-lg px-3 py-2 col-span-2 h-20"></textarea>
+                        </div>
+                        <div class="flex space-x-2 mt-4">
+                            <button onclick="app.saveEvent()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Save Event</button>
+                            <button onclick="app.showingForm=null; app.renderMainApp()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">Cancel</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            generateCalendarDays(year, month, games) {
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const startDate = new Date(firstDay);
+                startDate.setDate(startDate.getDate() - firstDay.getDay());
+                
+                const days = [];
+                const today = new Date();
+                
+                for (let i = 0; i < 42; i++) {
+                    const currentDate = new Date(startDate);
+                    currentDate.setDate(startDate.getDate() + i);
+                    
+                    const isCurrentMonth = currentDate.getMonth() === month;
+                    const isToday = currentDate.toDateString() === today.toDateString();
+                    const dateStr = currentDate.toISOString().split('T')[0];
+                    
+                    const dayEvents = games.filter(game => game.game_date === dateStr);
+                    
+                    days.push(`
+                        <div class="calendar-day ${isCurrentMonth ? 'bg-white' : 'bg-gray-50'} ${isToday ? 'bg-blue-50' : ''}">
+                            <div class="font-semibold ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'} ${isToday ? 'text-blue-600' : ''} mb-1">
+                                ${currentDate.getDate()}
+                            </div>
+                            ${dayEvents.map(event => `
+                                <div class="calendar-event ${event.type === 'practice' ? 'practice-event' : event.type === 'meeting' ? 'meeting-event' : 'game-event'}">
+                                    ${event.opponent || event.title || 'Game'}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `);
+                }
+                
+                return days.join('');
+            }
+
+            changeMonth(direction) {
+                this.currentDate.setMonth(this.currentDate.getMonth() + direction);
+                this.renderMainApp();
+            }
+
+            renderStatistics(teamPlayers) {
+                return `
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900">Player Statistics</h2>
+                            <div class="flex space-x-2">
+                                ${this.currentUser.role === 'admin' ? `
+                                    <button onclick="app.showingForm='addStats'; app.renderMainApp()" 
+                                            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                        Add Game Stats
+                                    </button>
+                                ` : ''}
+                                <button onclick="app.exportStats()" 
+                                        class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                                    Export CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        ${this.showingForm === 'addStats' ? this.renderAddStatsForm() : ''}
+
+                        <!-- Statistics Table -->
+                        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pos</th>
+                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">G</th>
+                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">AB</th>
+                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">H</th>
+                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">AVG</th>
+                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">RBI</th>
+                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">R</th>
+                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">SO</th>
+                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">BB</th>
+                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        ${teamPlayers.map(player => {
+                                            const seasonStats = this.getPlayerSeasonStats(player.id);
+                                            const gamesPlayed = this.stats.filter(s => s.player_id === player.id).length;
+                                            const avg = seasonStats.atBats > 0 ? (seasonStats.hits / seasonStats.atBats).toFixed(3) : '0.000';
+                                            
+                                            return `
+                                                <tr class="hover:bg-gray-50">
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${player.jersey_number}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${player.name}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${player.position}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${gamesPlayed}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${seasonStats.atBats}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${seasonStats.hits}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">${avg}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${seasonStats.rbis}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${seasonStats.runs}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${seasonStats.strikeouts}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${seasonStats.walks}</td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-center">
+                                                        <button onclick="app.viewPlayerStats(${player.id})" class="text-blue-600 hover:text-blue-900 mr-2">View</button>
+                                                        ${this.currentUser.role === 'admin' ? `
+                                                            <button onclick="app.editPlayerStats(${player.id})" class="text-yellow-600 hover:text-yellow-900 mr-2">Edit</button>
+                                                            <button onclick="app.deletePlayerStats(${player.id})" class="text-red-600 hover:text-red-900">Delete</button>
+                                                        ` : ''}
+                                                    </td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Individual Game Stats -->
+                        <div class="mt-8">
+                            <h3 class="text-lg font-semibold mb-4">Recent Game Statistics</h3>
+                            <div class="space-y-3">
+                                ${this.stats.slice(0, 10).map(stat => {
+                                    const player = teamPlayers.find(p => p.id === stat.player_id);
+                                    const game = this.games.find(g => g.id === stat.game_id);
+                                    const avg = stat.at_bats > 0 ? (stat.hits / stat.at_bats).toFixed(3) : '0.000';
+                                    
+                                    return `
+                                        <div class="border rounded-lg p-4 bg-white">
+                                            <div class="flex justify-between items-center">
+                                                <div>
+                                                    <h4 class="font-semibold">${player?.name || 'Unknown Player'} vs ${game?.opponent || 'Unknown'}</h4>
+                                                    <p class="text-sm text-gray-600">${game?.game_date || 'Unknown Date'}</p>
+                                                    <div class="flex space-x-4 mt-2 text-sm">
+                                                        <span>AB: ${stat.at_bats}</span>
+                                                        <span>H: ${stat.hits}</span>
+                                                        <span>AVG: ${avg}</span>
+                                                        <span>RBI: ${stat.rbis}</span>
+                                                        <span>R: ${stat.runs}</span>
+                                                    </div>
+                                                </div>
+                                                ${this.currentUser.role === 'admin' ? `
+                                                    <div class="flex space-x-2">
+                                                        <button onclick="app.editStat(${stat.id})" class="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700">Edit</button>
+                                                        <button onclick="app.deleteStat(${stat.id})" class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">Delete</button>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderAddStatsForm() {
+                const teamPlayers = this.players.filter(p => p.team_id === this.selectedTeam);
+                const teamGames = this.games.filter(g => g.team_id === this.selectedTeam);
+                
+                return `
+                    <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                        <h3 class="text-lg font-semibold mb-4">Add Game Statistics</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <select id="statsPlayer" class="border rounded-lg px-3 py-2">
+                                <option value="">Select Player</option>
+                                ${teamPlayers.map(player => `<option value="${player.id}">#${player.jersey_number} ${player.name}</option>`).join('')}
+                            </select>
+                            <select id="statsGame" class="border rounded-lg px-3 py-2">
+                                <option value="">Select Game</option>
+                                ${teamGames.map(game => `<option value="${game.id}">${game.game_date} vs ${game.opponent}</option>`).join('')}
+                            </select>
+                            <input type="number" id="statsAB" placeholder="At Bats" min="0" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="statsH" placeholder="Hits" min="0" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="statsRBI" placeholder="RBIs" min="0" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="statsR" placeholder="Runs" min="0" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="statsSO" placeholder="Strikeouts" min="0" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="statsBB" placeholder="Walks" min="0" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="statsIP" placeholder="Innings Pitched" min="0" step="0.1" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="statsER" placeholder="Earned Runs" min="0" class="border rounded-lg px-3 py-2">
+                        </div>
+                        <div class="flex space-x-2 mt-4">
+                            <button onclick="app.saveStats()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Save Statistics</button>
+                            <button onclick="app.showingForm=null; app.renderMainApp()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">Cancel</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Utility functions for handling actions
+            async savePlayer() {
+                // Implementation would call backend API to save player
+                console.log('Save player functionality would be implemented here');
+                this.showingForm = null;
+                this.renderMainApp();
+            }
+
+            async saveEvent() {
+                // Implementation would call backend API to save event
+                console.log('Save event functionality would be implemented here');
+                this.showingForm = null;
+                this.renderMainApp();
+            }
+
+            async saveStats() {
+                // Implementation would call backend API to save stats
+                console.log('Save stats functionality would be implemented here');
+                this.showingForm = null;
+                this.renderMainApp();
+            }
+
+            exportStats() {
+                // Implementation would export statistics to CSV
+                console.log('Export stats functionality would be implemented here');
+                alert('CSV export functionality would be implemented here');
             }
 
             renderNoTeam() {

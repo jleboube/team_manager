@@ -212,7 +212,7 @@ app.get('/api/teams', authenticateToken, async (req, res) => {
   }
 });
 
-// Players routes
+// Enhanced Players routes
 app.get('/api/players', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -225,6 +225,210 @@ app.get('/api/players', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching players:', error);
     res.status(500).json({ error: 'Failed to fetch players' });
+  }
+});
+
+// Add player (admin only)
+app.post('/api/players', [
+  body('teamId').isInt(),
+  body('name').trim().isLength({ min: 2 }),
+  body('jerseyNumber').isInt({ min: 0, max: 999 }),
+  body('position').isIn(['Pitcher', 'Catcher', 'First Base', 'Second Base', 'Third Base', 'Shortstop', 'Left Field', 'Center Field', 'Right Field']),
+  body('role').isIn(['Starter', 'Bench', 'Pitcher']),
+  body('email').optional().isEmail()
+], authenticateToken, async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { teamId, name, jerseyNumber, position, role, email } = req.body;
+
+    // Check if user is admin of this team
+    const teamCheck = await pool.query(
+      'SELECT id FROM teams WHERE id = $1 AND admin_id = $2',
+      [teamId, req.user.userId]
+    );
+
+    if (teamCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Not authorized to add players to this team' });
+    }
+
+    // Check if jersey number is already taken
+    const jerseyCheck = await pool.query(
+      'SELECT id FROM players WHERE team_id = $1 AND jersey_number = $2',
+      [teamId, jerseyNumber]
+    );
+
+    if (jerseyCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Jersey number already taken' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO players (team_id, name, jersey_number, position, role, email) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [teamId, name, jerseyNumber, position, role, email]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error adding player:', error);
+    res.status(500).json({ error: 'Failed to add player' });
+  }
+});
+
+// Update player (admin only)
+app.put('/api/players/:id', [
+  body('name').trim().isLength({ min: 2 }),
+  body('jerseyNumber').isInt({ min: 0, max: 999 }),
+  body('position').isIn(['Pitcher', 'Catcher', 'First Base', 'Second Base', 'Third Base', 'Shortstop', 'Left Field', 'Center Field', 'Right Field']),
+  body('role').isIn(['Starter', 'Bench', 'Pitcher']),
+  body('email').optional().isEmail()
+], authenticateToken, async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const playerId = req.params.id;
+    const { name, jerseyNumber, position, role, email } = req.body;
+
+    // Check if player exists and user is admin of the team
+    const playerCheck = await pool.query(`
+      SELECT p.*, t.admin_id FROM players p
+      JOIN teams t ON p.team_id = t.id
+      WHERE p.id = $1
+    `, [playerId]);
+
+    if (playerCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    if (playerCheck.rows[0].admin_id !== req.user.userId) {
+      return res.status(403).json({ error: 'Not authorized to edit this player' });
+    }
+
+    const teamId = playerCheck.rows[0].team_id;
+
+    // Check if jersey number is already taken by another player
+    const jerseyCheck = await pool.query(
+      'SELECT id FROM players WHERE team_id = $1 AND jersey_number = $2 AND id != $3',
+      [teamId, jerseyNumber, playerId]
+    );
+
+    if (jerseyCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Jersey number already taken' });
+    }
+
+    const result = await pool.query(
+      'UPDATE players SET name = $1, jersey_number = $2, position = $3, role = $4, email = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *',
+      [name, jerseyNumber, position, role, email, playerId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating player:', error);
+    res.status(500).json({ error: 'Failed to update player' });
+  }
+});
+
+// Delete player (admin only)
+app.delete('/api/players/:id', authenticateToken, async (req, res) => {
+  try {
+    const playerId = req.params.id;
+
+    // Check if player exists and user is admin of the team
+    const playerCheck = await pool.query(`
+      SELECT p.*, t.admin_id FROM players p
+      JOIN teams t ON p.team_id = t.id
+      WHERE p.id = $1
+    `, [playerId]);
+
+    if (playerCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    if (playerCheck.rows[0].admin_id !== req.user.userId) {
+      return res.status(403).json({ error: 'Not authorized to delete this player' });
+    }
+
+    // Delete player (this will cascade delete stats due to foreign key constraints)
+    await pool.query('DELETE FROM players WHERE id = $1', [playerId]);
+
+    res.json({ message: 'Player deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting player:', error);
+    res.status(500).json({ error: 'Failed to delete player' });
+  }
+});
+
+// Scouting Reports routes
+app.post('/api/scouting-reports', authenticateToken, async (req, res) => {
+  try {
+    const { playerId, ...scoutingData } = req.body;
+
+    // Check if player exists and user has access to the team
+    const playerCheck = await pool.query(`
+      SELECT p.*, tm.user_id FROM players p
+      JOIN teams t ON p.team_id = t.id
+      JOIN team_memberships tm ON t.id = tm.team_id
+      WHERE p.id = $1 AND tm.user_id = $2
+    `, [playerId, req.user.userId]);
+
+    if (playerCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Player not found or access denied' });
+    }
+
+    // Insert or update scouting report
+    const result = await pool.query(`
+      INSERT INTO scouting_reports (
+        player_id, scout_id, height, weight, throws, bats, birth_date, school, 
+        parent_guardian, emergency_contact, contact_ability, power, plate_discipline,
+        swing_mechanics, bunting_ability, clutch_hitting, hitting_notes,
+        range_rating, arm_strength, accuracy, hands_glove_work, footwork, 
+        game_awareness, fielding_notes, speed, base_running_iq, steal_ability,
+        running_notes, fastball_velocity, control, command, curveball, changeup,
+        slider_cutter, pitching_notes, overall_grade, potential, strengths,
+        areas_for_improvement, overall_summary
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+        $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32,
+        $33, $34, $35, $36, $37, $38, $39, $40
+      )
+      ON CONFLICT (player_id) 
+      DO UPDATE SET 
+        scout_id = $2, height = $3, weight = $4, throws = $5, bats = $6,
+        birth_date = $7, school = $8, parent_guardian = $9, emergency_contact = $10,
+        contact_ability = $11, power = $12, plate_discipline = $13, swing_mechanics = $14,
+        bunting_ability = $15, clutch_hitting = $16, hitting_notes = $17, range_rating = $18,
+        arm_strength = $19, accuracy = $20, hands_glove_work = $21, footwork = $22,
+        game_awareness = $23, fielding_notes = $24, speed = $25, base_running_iq = $26,
+        steal_ability = $27, running_notes = $28, fastball_velocity = $29, control = $30,
+        command = $31, curveball = $32, changeup = $33, slider_cutter = $34,
+        pitching_notes = $35, overall_grade = $36, potential = $37, strengths = $38,
+        areas_for_improvement = $39, overall_summary = $40, updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `, [
+      playerId, req.user.userId, scoutingData.height, scoutingData.weight, scoutingData.throws,
+      scoutingData.bats, scoutingData.birthDate, scoutingData.school, scoutingData.parentGuardian,
+      scoutingData.emergencyContact, scoutingData.contactAbility, scoutingData.power,
+      scoutingData.plateDiscipline, scoutingData.swingMechanics, scoutingData.buntingAbility,
+      scoutingData.clutchHitting, scoutingData.hittingNotes, scoutingData.range,
+      scoutingData.armStrength, scoutingData.accuracy, scoutingData.handsGloveWork,
+      scoutingData.footwork, scoutingData.gameAwareness, scoutingData.fieldingNotes,
+      scoutingData.speed, scoutingData.baseRunningIQ, scoutingData.stealAbility,
+      scoutingData.runningNotes, scoutingData.fastballVelocity, scoutingData.control,
+      scoutingData.command, scoutingData.curveball, scoutingData.changeup,
+      scoutingData.sliderCutter, scoutingData.pitchingNotes, scoutingData.overallGrade,
+      scoutingData.potential, scoutingData.strengths, scoutingData.areasForImprovement,
+      scoutingData.overallSummary
+    ]);
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error saving scouting report:', error);
+    res.status(500).json({ error: 'Failed to save scouting report' });
   }
 });
 
@@ -338,7 +542,7 @@ const setupDemoData = async () => {
           INSERT INTO players (team_id, name, jersey_number, position, role, email) VALUES 
           ($1, 'Mike Johnson', 12, 'Pitcher', 'Starter', 'mike.johnson@email.com'),
           ($1, 'Sarah Davis', 7, 'Shortstop', 'Starter', 'sarah.davis@email.com'),
-          ($1, 'Tom Wilson', 23, 'Outfield', 'Bench', 'tom.wilson@email.com')
+          ($1, 'Tom Wilson', 23, 'Right Field', 'Bench', 'tom.wilson@email.com')
           ON CONFLICT (team_id, jersey_number) DO NOTHING
         `, [teamId]);
 
